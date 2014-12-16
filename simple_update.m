@@ -1,0 +1,149 @@
+function [Gamma_A,Gamma_B,lambda] =...
+    simple_update(Gamma_A,Gamma_B,lambda,gate_tensor )
+% simple update on tensors
+% V' is used instead of V.' (sticking to 2008.HCJiang.PRL strictly.)
+% 20141102: started reusing this convention for simple_update again.
+% 20141127: Correct the previous version by explicitly using
+% the Gamma, lambda tensor
+% 20141128: each directional simple_update did not update tensors for the
+% next directional simple_update.
+
+PHYS_DIM=size(Gamma_A,1);
+BOND_DIM=size(Gamma_A,2);
+% CUTOFF=10^(-12);
+
+%% lambda{4} update (A-rightward-B)
+tensor_Theta=ncon({Gamma_A,Gamma_B,...
+    lambda{1},lambda{2},lambda{3},lambda{4},lambda{1},lambda{2},lambda{3}},...
+    {[-1,1,2,3,4],[-5,5,8,6,7],...
+    [-2,1],[-3,2],[3,-4],[4,8],[6,-8],[7,-7],[-6,5]});
+tensor_Theta_prime=ncon({tensor_Theta,gate_tensor},...
+    {[1,-2,-3,-4,2,-6,-7,-8],[-1,-5,1,2]});
+matrix_Theta_prime=reshape(tensor_Theta_prime,...
+    [PHYS_DIM*BOND_DIM^3,PHYS_DIM*BOND_DIM^3]);
+[temp_U,lambda_4_temp,temp_V]=svd(matrix_Theta_prime);
+temp_V=temp_V';
+lambda{4}=lambda_4_temp(1:BOND_DIM,1:BOND_DIM);
+lambda{4}=lambda{4}/(norm(diag(lambda{4})));
+
+Gamma_A_temp=reshape(temp_U(:,1:BOND_DIM),...
+    [PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_A=ncon...
+    ({Gamma_A_temp,pinv(lambda{1}),pinv(lambda{2}),pinv(lambda{3})},...
+    {[-1,1,2,3,-5],[-2,1],[-3,2],[3,-4]});
+
+Gamma_B_temp=reshape(temp_V(1:BOND_DIM,:),...
+    [BOND_DIM,PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_B_temp=permute(Gamma_B_temp,[2,3,1,5,4]);
+Gamma_B=ncon...
+    ({Gamma_B_temp,pinv(lambda{3}),pinv(lambda{1}),pinv(lambda{2})},...
+    {[-1,1,-3,2,3],[-2,1],[2,-4],[3,-5]});
+
+% Normalization of Gamma A, B (divided by maximum modulus element)
+Gamma_A=Gamma_A/max(abs(Gamma_A(:)));
+% Gamma_A_prime(abs(Gamma_A_prime)<CUTOFF)=0;
+Gamma_B=Gamma_B/max(abs(Gamma_B(:)));
+% Gamma_B_prime(abs(Gamma_B_prime)<CUTOFF)=0;
+
+%% lambda{2} update (A-leftward-B)
+tensor_Theta=ncon({Gamma_B,Gamma_A,...
+    lambda{3},lambda{4},lambda{1},lambda{2},lambda{3},lambda{4},lambda{1}},...
+    {[-1,1,2,3,4],[-5,5,8,6,7],...
+    [-2,1],[-3,2],[3,-4],[4,8],[6,-8],[7,-7],[-6,5]});
+tensor_Theta_prime=ncon({tensor_Theta,gate_tensor},...
+    {[1,-2,-3,-4,2,-6,-7,-8],[-1,-5,1,2]});
+matrix_Theta_prime=reshape(tensor_Theta_prime,...
+    [PHYS_DIM*BOND_DIM^3,PHYS_DIM*BOND_DIM^3]);
+[temp_U,lambda_2_temp,temp_V]=svd(matrix_Theta_prime);
+temp_V=temp_V';
+lambda{2}=lambda_2_temp(1:BOND_DIM,1:BOND_DIM);
+lambda{2}=lambda{2}/(norm(diag(lambda{2})));
+
+Gamma_B_temp=reshape(temp_U(:,1:BOND_DIM),...
+    [PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_B=ncon...
+    ({Gamma_B_temp,pinv(lambda{3}),pinv(lambda{4}),pinv(lambda{1})},...
+    {[-1,1,2,3,-5],[-2,1],[-3,2],[3,-4]});
+
+Gamma_A_temp=reshape(temp_V(1:BOND_DIM,:),...
+    [BOND_DIM,PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_A_temp=permute(Gamma_A_temp,[2,3,1,5,4]);
+Gamma_A=ncon...
+    ({Gamma_A_temp,pinv(lambda{1}),pinv(lambda{3}),pinv(lambda{4})},...
+    {[-1,1,-3,2,3],[-2,1],[2,-4],[3,-5]});
+
+% Normalization of Gamma A, B (divided by maximum modulus element)
+Gamma_A=Gamma_A/max(abs(Gamma_A(:)));
+% Gamma_A_prime(abs(Gamma_A_prime)<CUTOFF)=0;
+Gamma_B=Gamma_B/max(abs(Gamma_B(:)));
+% Gamma_B_prime(abs(Gamma_B_prime)<CUTOFF)=0;
+
+%% lambda{1} update (A-upward-B)
+tensor_Theta=ncon({Gamma_A,Gamma_B,...
+    lambda{1},lambda{2},lambda{3},lambda{4},lambda{2},lambda{3},lambda{4}},...
+    {[-1,1,2,3,4],[-5,5,6,8,7],...
+    [8,1],[-2,2],[3,-3],[4,-4],[7,-8],[-7,5],[6,-6]});
+tensor_Theta_prime=ncon({tensor_Theta,gate_tensor},...
+    {[1,-2,-3,-4,2,-6,-7,-8],[-1,-5,1,2]});
+matrix_Theta_prime=reshape(tensor_Theta_prime,...
+    [PHYS_DIM*BOND_DIM^3,PHYS_DIM*BOND_DIM^3]);
+[temp_U,lambda_1_temp,temp_V]=svd(matrix_Theta_prime);
+temp_V=temp_V';
+lambda{1}=lambda_1_temp(1:BOND_DIM,1:BOND_DIM);
+lambda{1}=lambda{1}/(norm(diag(lambda{1})));
+
+Gamma_A_temp=reshape(temp_U(:,1:BOND_DIM),...
+    [PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_A_temp=permute(Gamma_A_temp,[1,5,2,3,4]);
+Gamma_A=ncon...
+    ({Gamma_A_temp,pinv(lambda{2}),pinv(lambda{3}),pinv(lambda{4})},...
+    {[-1,-5,1,2,3],[-2,1],[2,-3],[3,-4]});
+
+Gamma_B_temp=reshape(temp_V(1:BOND_DIM,:),...
+    [BOND_DIM,PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_B_temp=permute(Gamma_B_temp,[2,4,3,1,5]);
+Gamma_B=ncon...
+    ({Gamma_B_temp,pinv(lambda{2}),pinv(lambda{3}),pinv(lambda{4})},...
+    {[-1,1,2,-4,3],[3,-5],[-2,1],[-3,2]});
+
+% Normalization of Gamma A, B (divided by maximum modulus element)
+Gamma_A=Gamma_A/max(abs(Gamma_A(:)));
+% Gamma_A_prime(abs(Gamma_A_prime)<CUTOFF)=0;
+Gamma_B=Gamma_B/max(abs(Gamma_B(:)));
+% Gamma_B_prime(abs(Gamma_B_prime)<CUTOFF)=0;
+
+%% lambda{3} update (A-downward-B)
+tensor_Theta=ncon({Gamma_B,Gamma_A,...
+    lambda{3},lambda{4},lambda{1},lambda{2},lambda{4},lambda{1},lambda{2}},...
+    {[-1,1,2,3,4],[-5,5,6,8,7],...
+    [8,1],[-2,2],[3,-3],[4,-4],[7,-8],[-7,5],[6,-6]});
+tensor_Theta_prime=ncon({tensor_Theta,gate_tensor},...
+    {[1,-2,-3,-4,2,-6,-7,-8],[-1,-5,1,2]});
+matrix_Theta_prime=reshape(tensor_Theta_prime,...
+    [PHYS_DIM*BOND_DIM^3,PHYS_DIM*BOND_DIM^3]);
+[temp_U,lambda_3_temp,temp_V]=svd(matrix_Theta_prime);
+temp_V=temp_V';
+lambda{3}=lambda_3_temp(1:BOND_DIM,1:BOND_DIM);
+lambda{3}=lambda{3}/(norm(diag(lambda{3})));
+
+Gamma_B_temp=reshape(temp_U(:,1:BOND_DIM),...
+    [PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_B_temp=permute(Gamma_B_temp,[1,5,2,3,4]);
+Gamma_B=ncon...
+    ({Gamma_B_temp,pinv(lambda{4}),pinv(lambda{1}),pinv(lambda{2})},...
+    {[-1,-5,1,2,3],[-2,1],[-3,2],[3,-4]});
+
+Gamma_A_temp=reshape(temp_V(1:BOND_DIM,:),...
+    [BOND_DIM,PHYS_DIM,BOND_DIM,BOND_DIM,BOND_DIM]);
+Gamma_A_temp=permute(Gamma_A_temp,[2,4,3,1,5]);
+Gamma_A=ncon...
+    ({Gamma_A_temp,pinv(lambda{4}),pinv(lambda{1}),pinv(lambda{2})},...
+    {[-1,1,2,-4,3],[3,-5],[-2,1],[-3,2]});
+
+% Normalization of Gamma A, B (divided by maximum modulus element)
+Gamma_A=Gamma_A/max(abs(Gamma_A(:)));
+% Gamma_A_prime(abs(Gamma_A_prime)<CUTOFF)=0;
+Gamma_B=Gamma_B/max(abs(Gamma_B(:)));
+% Gamma_B_prime(abs(Gamma_B_prime)<CUTOFF)=0;
+end
+
